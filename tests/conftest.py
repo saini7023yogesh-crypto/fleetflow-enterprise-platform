@@ -9,7 +9,6 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base, get_db
 from app.main import app
-from app.models.order import Order
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "sqlite:///./fleetflow_test.db")
 
