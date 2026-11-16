@@ -1,7 +1,7 @@
 import os
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 # Read database connection URL from environment
 DATABASE_URL = os.getenv("DATABASE_URL")
