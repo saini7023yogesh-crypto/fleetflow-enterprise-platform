@@ -1,4 +1,4 @@
-name: FleetFlow CI Pipeline
+name: FleetFlow Enterprise CI
 
 on:
   push:
@@ -8,9 +8,28 @@ on:
     branches: [main]
 
 jobs:
-  test:
-    name: Test FastAPI Application
+  test-and-build:
+    name: Test, Quality and Docker Build
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: fleetflow_test
+          POSTGRES_USER: fleetflow_user
+          POSTGRES_PASSWORD: fleetflow_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fleetflow_user -d fleetflow_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+psycopg2://fleetflow_user:fleetflow_password@localhost:5432/fleetflow_test
+      TEST_DATABASE_URL: postgresql+psycopg2://fleetflow_user:fleetflow_password@localhost:5432/fleetflow_test
 
     steps:
       - name: Checkout Repository
@@ -24,8 +43,36 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
-      - name: Run Tests
-        run: |
-          pytest -v
+      - name: Run Ruff Lint
+        run: ruff check app tests
+
+      - name: Check Python Formatting
+        run: ruff format --check app tests
+
+      - name: Run Pytest
+        run: python -m pytest -v
+
+      - name: Build Docker Image
+        run: docker build -t fleetflow-api:ci .
+
+      - name: Scan Repository with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig,secret
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Scan Docker Image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: fleetflow-api:ci
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
