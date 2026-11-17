@@ -1,4 +1,5 @@
-name: FleetFlow Enterprise CI
+
+name: FleetFlow Enterprise CI-CD
 
 on:
   push:
@@ -7,10 +8,17 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   test-and-build:
-    name: Test, Quality and Docker Build
+    name: Test, Quality, Security and Docker Build
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
 
     services:
       postgres:
@@ -76,3 +84,21 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "1"
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag Docker Image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker tag fleetflow-api:ci ghcr.io/${{ github.repository }}:git-${GITHUB_SHA::7}
+
+      - name: Push Docker Image to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker push ghcr.io/${{ github.repository }}:git-${GITHUB_SHA::7}
