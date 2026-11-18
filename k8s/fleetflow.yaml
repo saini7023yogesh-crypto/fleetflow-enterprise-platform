@@ -35,9 +35,19 @@ spec:
     metadata:
       labels:
         app: postgres
-    spec:
+        spec:
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: postgres
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           image: postgres:16-alpine
           ports:
             - containerPort: 5432
@@ -108,9 +118,18 @@ spec:
     metadata:
       labels:
         app: fleetflow-api
-    spec:
+         spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: fleetflow-api
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           image: fleetflow-api:k8s
           imagePullPolicy: IfNotPresent
           ports:
